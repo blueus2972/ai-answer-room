@@ -1,0 +1,61 @@
+const PROVIDERS=[{id:'gemini',name:'Gemini',symbol:'✦',url:'https://gemini.google.com/',accent:'#557cc7',tint:'#eaf0ff'},{id:'claude',name:'Claude',symbol:'✳',url:'https://claude.ai/',accent:'#bd8467',tint:'#faf0e9'},{id:'gpt',name:'ChatGPT',symbol:'◎',url:'https://chatgpt.com/',accent:'#4f927e',tint:'#e8f4ee'},{id:'grok',name:'Grok',symbol:'↗',url:'https://grok.com/',accent:'#647085',tint:'#eef0f4'}];
+const KEY='uriban:ai-compare:v1',CATEGORIES=['일반','수업 준비','평가 문항','학부모 안내','자료 조사'];
+const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const blank=()=>({id:crypto.randomUUID(),title:'',category:'일반',prompt:'',answers:Object.fromEntries(PROVIDERS.map(p=>[p.id,''])),best:'',notes:'',updated:Date.now()});
+const meaningful=x=>!!(x.title||x.prompt||x.notes||Object.values(x.answers).some(Boolean));
+let items=[],current=blank(),saveTimer,toastTimer,storageReadable=true;
+let activeRun=null,extensionReady=false;
+function toast(message){$('toast').textContent=message;$('toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('visible'),3500);}
+function clean(x){if(!x||typeof x!=='object'||typeof x.prompt!=='string'||!x.answers||typeof x.answers!=='object')throw Error('비교실 백업 파일이 아니에요.');const text=(v,max)=>{if(v!=null&&typeof v!=='string')throw Error('백업 내용의 형식이 올바르지 않아요.');if((v||'').length>max)throw Error('백업 내용이 너무 길어요.');return v||'';};return {...blank(),title:text(x.title,100),category:CATEGORIES.includes(x.category)?x.category:'일반',prompt:text(x.prompt,1000000),answers:Object.fromEntries(PROVIDERS.map(p=>[p.id,text(x.answers[p.id],1000000)])),best:PROVIDERS.some(p=>p.id===x.best)?x.best:'',notes:text(x.notes,1000000),updated:Number.isFinite(x.updated)?x.updated:Date.now()};}
+try{const raw=localStorage.getItem(KEY);if(raw){const saved=JSON.parse(raw);if(saved.version!==1||!Array.isArray(saved.items)||saved.items.length>1000)throw Error('기록 형식 오류');items=saved.items.map(x=>({...clean(x),id:typeof x.id==='string'&&/^[a-z0-9-]{1,80}$/i.test(x.id)?x.id:crypto.randomUUID()}));current=items.find(x=>x.id===saved.active)||items[0]||blank();}}catch{storageReadable=false;}
+function persist(){clearTimeout(saveTimer);if(meaningful(current)){current.updated=Date.now();const i=items.findIndex(x=>x.id===current.id);if(i<0)items.unshift(current);else items[i]=current;}if(!storageReadable){$('saveStatus').textContent='기존 기록을 읽지 못해 덮어쓰지 않았습니다. 현재 비교를 내려받아 보관해 주세요.';drawRecords();return;}try{localStorage.setItem(KEY,JSON.stringify({version:1,active:current.id,items}));$('saveStatus').textContent='이 브라우저에 자동 저장됨 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});}catch{$('saveStatus').textContent='저장 공간 부족 또는 저장 차단 · 내려받기로 보관해 주세요.';toast('자동 저장하지 못했어요. 현재 비교를 내려받아 보관해 주세요.');}drawRecords();}
+function changed(){current.category=$('category').value;current.prompt=$('prompt').value;current.title=current.prompt.trim().replace(/\s+/g,' ').slice(0,100);current.notes=$('notes').value;PROVIDERS.forEach(p=>current.answers[p.id]=$('answer-'+p.id).value);$('saveStatus').textContent='저장 중…';clearTimeout(saveTimer);saveTimer=setTimeout(persist,300);updateCounts();}
+function updateCounts(){const n=PROVIDERS.filter(p=>current.answers[p.id].trim()).length;$('progress').textContent=n+' / 4 답변';PROVIDERS.forEach(p=>{$('count-'+p.id).textContent=current.answers[p.id].length.toLocaleString()+'자';document.querySelector('[data-best="'+p.id+'"]').setAttribute('aria-pressed',String(current.best===p.id));});}
+function drawRecords(){const query=$('search').value.toLocaleLowerCase();const visible=items.filter(x=>[x.title,x.category,x.prompt,x.notes,...Object.values(x.answers)].join(' ').toLocaleLowerCase().includes(query)).slice().sort((a,b)=>b.updated-a.updated);$('records').innerHTML=visible.map(x=>`<button class="record" data-record="${esc(x.id)}" aria-current="${x.id===current.id}"><b>${esc(x.title||x.prompt.slice(0,32)||'제목 없는 비교')}</b><small>${esc(x.category)} · ${new Date(x.updated).toLocaleDateString('ko-KR')} · ${Object.values(x.answers).filter(v=>v.trim()).length}개 답변</small></button>`).join('')||'<p class="empty">'+(query?'검색 결과가 없어요.':'첫 질문을 적어 비교를 시작하세요.')+'</p>';}
+function draw(){document.documentElement.dataset.compareRecord=current.id;drawRun();for(const f of ['category','prompt','notes'])$(f).value=current[f];PROVIDERS.forEach(p=>$('answer-'+p.id).value=current.answers[p.id]);updateCounts();drawRecords();}
+function download(name,text,type){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+async function copy(text,field){if(!text.trim()){toast('먼저 내용을 적어 주세요.');return;}try{await navigator.clipboard.writeText(text);toast('복사했어요. AI 화면에 붙여 넣어 주세요.');}catch{field.focus();field.select();toast('복사 권한이 없어 내용을 선택했어요. Ctrl+C로 복사해 주세요.');}}
+$('providerLinks').innerHTML=PROVIDERS.map(p=>`<a href="${p.url}" target="_blank" rel="noopener noreferrer">${p.name} 열기<span aria-hidden="true">↗</span><span class="sr-only"> (새 탭)</span></a>`).join('');
+$('answers').innerHTML=PROVIDERS.map(p=>`<article class="answer" style="--accent:${p.accent};--tint:${p.tint}"><header><h3><span class="symbol" aria-hidden="true">${p.symbol}</span>${p.name}</h3><button class="best" data-best="${p.id}" aria-pressed="false" aria-label="${p.name} 답변 참고 표시">☆ 참고할 답변</button></header><textarea id="answer-${p.id}" aria-label="${p.name} 답변" placeholder="${p.name}에서 받은 답변을 여기에 붙여 넣으세요." maxlength="1000000"></textarea><div class="ai-run-status"><span id="run-${p.id}" role="status"></span><button data-open-provider="${p.id}" hidden>AI 확인 ↗</button></div><div class="answer-foot"><span id="count-${p.id}">0자</span><button data-copy="${p.id}">${p.name} 답변 복사</button></div></article>`).join('');
+for(const id of ['category','prompt','notes',...PROVIDERS.map(p=>'answer-'+p.id)])$(id).addEventListener('input',changed);
+$('copyPrompt').onclick=()=>copy(current.prompt,$('prompt'));
+$('answers').onclick=e=>{const best=e.target.closest('[data-best]'),button=e.target.closest('[data-copy]');if(best){current.best=current.best===best.dataset.best?'':best.dataset.best;updateCounts();persist();}if(button)copy(current.answers[button.dataset.copy],$('answer-'+button.dataset.copy));};
+$('new').onclick=()=>{persist();if(!meaningful(current))return;current=blank();draw();$('saveStatus').textContent='새 비교 · 작성하면 자동 저장됩니다.';$('prompt').focus();};
+$('records').onclick=e=>{const b=e.target.closest('[data-record]');if(!b)return;persist();current=items.find(x=>x.id===b.dataset.record);draw();$('saveStatus').textContent='저장된 비교를 열었어요.';};
+$('search').oninput=drawRecords;
+$('layout').onclick=()=>{const wide=$('answers').classList.toggle('wide');$('layout').setAttribute('aria-pressed',String(wide));$('layout').textContent=wide?'한 줄에 2개':'한 줄에 4개';};
+$('delete').onclick=()=>{if(!meaningful(current))return;if(!confirm('「'+(current.title||'제목 없는 비교')+'」를 삭제할까요? 되돌릴 수 없습니다.'))return;clearTimeout(saveTimer);items=items.filter(x=>x.id!==current.id);current=items[0]||blank();persist();draw();toast('비교 기록을 삭제했어요.');};
+$('export').onclick=()=>{persist();if(!meaningful(current)){toast('먼저 비교 내용을 적어 주세요.');return;}const md='# '+(current.title||'AI 답변 비교')+'\n\n분류: '+current.category+'\n\n## 질문\n\n'+current.prompt+'\n\n'+PROVIDERS.map(p=>'## '+p.name+(current.best===p.id?' · 참고할 답변':'')+'\n\n'+(current.answers[p.id]||'(답변 없음)')).join('\n\n')+'\n\n## 나의 판단과 최종 정리\n\n'+current.notes;download('AI-답변-비교.md',md,'text/markdown;charset=utf-8');};
+$('backup').onclick=()=>{persist();download('AI-비교실-백업-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({version:1,items},null,2),'application/json');toast('전체 백업을 내려받았어요.');};
+$('restore').onclick=()=>$('backupFile').click();$('backupFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>20000000)throw Error('20MB 이하의 백업 파일을 선택해 주세요.');const data=JSON.parse(await file.text());if(data.version!==1||!Array.isArray(data.items)||data.items.length>1000)throw Error('비교실 백업 파일이 아니에요.');const imported=data.items.map(clean).filter(meaningful);if(!imported.length)throw Error('가져올 기록이 없어요.');persist();if(items.length+imported.length>1000)throw Error('기록은 최대 1,000개까지 가져올 수 있어요.');if(!storageReadable&&!confirm('기존 저장 내용을 읽을 수 없습니다. 백업으로 교체할까요?'))return;items=[...imported,...items];current=imported[0];storageReadable=true;persist();draw();toast(imported.length+'개 비교 기록을 가져왔어요.');}catch(err){toast(err instanceof SyntaxError?'올바른 JSON 백업 파일이 아니에요.':err.message);}finally{e.target.value='';}};
+window.addEventListener('pagehide',persist);draw();if(!storageReadable)$('saveStatus').textContent='기록 저장소를 읽지 못했어요. 내려받기로 보관하거나 백업을 가져와 주세요.';
+
+const finished=s=>['done','error','cancelled'].includes(s);
+function drawRun(){
+ const busy=activeRun?.jobs.some(j=>!finished(j.state));
+ $('sendAll').disabled=!!busy;$('stopAll').hidden=!busy;$('prompt').readOnly=!!busy&&activeRun?.recordId===current.id;
+ if(activeRun)document.documentElement.dataset.compareRun=activeRun.id;
+ for(const p of PROVIDERS){const job=activeRun?.recordId===current.id?activeRun.jobs.find(j=>j.provider===p.id):null;const label=$('run-'+p.id);if(label){label.textContent=job?.message||'';label.dataset.state=job?.state||'';$('answer-'+p.id).readOnly=!!job&&!finished(job.state);document.querySelector('[data-open-provider="'+p.id+'"]').hidden=!job?.hasTab;}}
+}
+$('sendAll').onclick=()=>{
+ if(!current.prompt.trim()){toast('먼저 질문을 적어 주세요.');$('prompt').focus();return;}
+ if(current.prompt.length>30000){toast('자동 전송은 30,000자 이하의 질문을 지원합니다.');return;}
+ if(!extensionReady&&!document.documentElement.dataset.aiBridge){$('extensionHelp').open=true;toast('확장 프로그램을 설치한 뒤 비교실을 새로고침해 주세요.');return;}
+ // A rerun gets its own record, preserving previous answers and notes.
+ if(Object.values(current.answers).some(Boolean)){persist();const previous=current;current={...blank(),prompt:previous.prompt,category:previous.category,title:previous.prompt.trim().replace(/\s+/g,' ').slice(0,100)};draw();}
+ persist();document.documentElement.dataset.compareRecord=current.id;$('sendAll').disabled=true;$('prompt').readOnly=true;
+};
+window.addEventListener('message',e=>{
+ if(e.source!==window||e.origin!==location.origin||e.data?.source!=='uriban-ai-extension')return;
+ const m=e.data;
+ if(m.type==='READY'){extensionReady=true;document.documentElement.dataset.aiBridge='1';$('extensionStatus').textContent='확장 프로그램 연결됨 · '+m.version;}
+ if(m.type==='ERROR'){toast(m.message);drawRun();}
+ if(m.type==='RUN'&&m.run&&Array.isArray(m.run.jobs)){
+  activeRun=m.run;
+  const record=items.find(x=>x.id===m.run.recordId)||(current.id===m.run.recordId?current:null);
+  if(record){for(const job of m.run.jobs){if(PROVIDERS.some(p=>p.id===job.provider)&&typeof job.text==='string'&&job.text){record.answers[job.provider]=job.text;if(current.id===record.id){$('answer-'+job.provider).value=job.text;}}}if(current.id===record.id){current=record;updateCounts();}persist();}
+  drawRun();
+ }
+});
+window.postMessage({source:'uriban-ai-web',type:'SYNC'},location.origin);
+setTimeout(()=>{if(!extensionReady&&!document.documentElement.dataset.aiBridge)$('extensionStatus').textContent='자동 연결을 사용하려면 확장 프로그램을 설치하세요.';},1500);
