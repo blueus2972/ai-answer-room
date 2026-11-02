@@ -1,4 +1,4 @@
-# 우리반 AI 비교 연결 (개인용 Chrome 확장, 0.2.0)
+# 우리반 AI 비교 연결 (개인용 Chrome 확장, 0.2.1)
 
 설치: public/downloads/uriban-ai-bridge.zip 압축 해제 → chrome://extensions → 개발자 모드 → 압축해제된 확장 프로그램 로드 → manifest.json 폴더 선택. 비교실을 새로고침합니다.
 
@@ -12,6 +12,6 @@
 
 소스: extension/; 패키지 생성: scripts/package-extension.mjs. 개인정보·프롬프트·답변을 개발자 서버로 보내지 않습니다.
 
-## 0.2.0 수정
+## 0.2.1 수정
 
 Grok의 질문과 답변이 같은 마크다운 클래스를 사용하는 경우 질문을 답변으로 수집하던 문제를 수정했습니다. 이제 assistant 작성 영역만 수집합니다. 기존 설치는 파일 교체 후 확장 프로그램 새로고침이 필요합니다.

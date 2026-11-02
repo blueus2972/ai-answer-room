@@ -3,18 +3,18 @@
  if(!id||window!==window.top||globalThis.__uribanProvider)return;globalThis.__uribanProvider=true;
  const selectors={
   gemini:{edit:['.ql-editor[contenteditable="true"][role="textbox"]','[contenteditable="true"][aria-label*="Gemini"]'],send:['button.send-button','button[aria-label="Send message"]','button[aria-label="메시지 보내기"]'],answer:['model-response .markdown-main-panel','model-response message-content','model-response .markdown','model-response'],user:['user-query .query-text','user-query']},
-  claude:{edit:['.ProseMirror[contenteditable="true"][role="textbox"]','[contenteditable="true"][aria-label*="Claude"]'],send:['button[data-testid="send-button"]','button[aria-label="Send message"]','button[aria-label="메시지 보내기"]'],answer:['[data-testid="assistant-message"] .standard-markdown','.font-claude-response-body','.font-claude-response','[data-testid="assistant-message"]'],user:['[data-testid="user-message"]']},
+  claude:{edit:['.ProseMirror[contenteditable="true"][role="textbox"]','[contenteditable="true"][aria-label*="Claude"]'],send:['button[data-testid="send-button"]','button[aria-label="Send message"]','button[aria-label="메시지 보내기"]','button[aria-label="메시지 전송"]','button[aria-label="Send Message"]','button[aria-label="메시지 전송하기"]'],answer:['[data-testid="assistant-message"] .standard-markdown','.font-claude-response-body','.font-claude-response','[data-testid="assistant-message"]'],user:['[data-testid="user-message"]']},
   gpt:{edit:['#prompt-textarea','[contenteditable="true"][role="textbox"]','textarea[data-id="root"]'],send:['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="프롬프트 보내기"]'],answer:['[data-message-author-role="assistant"] .markdown','[data-message-author-role="assistant"]','[data-turn="assistant"]','[data-content-search-unit-key$=":assistant"]','[data-chatgpt-search-unit-key$=":assistant"]'],user:['[data-message-author-role="user"]','[data-turn="user"]']},
-  grok:{edit:['.ProseMirror[contenteditable="true"][role="combobox"]','[contenteditable="true"][aria-label*="Grok"]','textarea[placeholder]'],send:['button[data-testid="chat-submit"]','button[aria-label="제출"]','button[aria-label="Submit"]','button[aria-label="Send"]','button[aria-label="전송"]'],answer:['[data-testid="assistant-message"] .response-content-markdown','[data-testid="assistant-message"]','[data-message-role="assistant"]','[data-role="assistant"]'],user:['[data-testid="user-message"]','[data-message-role="user"]','[data-role="user"]']}
+  grok:{edit:['.ProseMirror[contenteditable="true"][role="combobox"]','[contenteditable="true"][aria-label*="Grok"]','textarea[placeholder]'],send:['button[data-testid="chat-submit"]','button[aria-label="제출"]','button[aria-label="Submit"]','button[aria-label="Send"]','button[aria-label="전송"]'],answer:['[data-testid="assistant-message"] .response-content-markdown','[data-message-role="assistant"] .response-content-markdown','[data-role="assistant"] .response-content-markdown'],user:['[data-testid="user-message"]','[data-message-role="user"]','[data-role="user"]']}
  }[id];
  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const visible=el=>!!el&&el.getBoundingClientRect().width>0&&el.getBoundingClientRect().height>0&&getComputedStyle(el).visibility!=='hidden';
  const first=ss=>{for(const s of ss){const el=[...document.querySelectorAll(s)].find(visible);if(el)return el;}return null;};
  const text=el=>el?(el instanceof HTMLTextAreaElement?el.value:el.innerText||el.textContent||''):'';
  const norm=s=>s.replaceAll('\r\n','\n').trim();
- function responses(){for(const s of selectors.answer){const nodes=[...document.querySelectorAll(s)].filter(visible);if(nodes.length)return nodes.map(el=>{const c=el.cloneNode(true);c.querySelectorAll('button,svg,script,style,[aria-hidden="true"]').forEach(n=>n.remove());c.querySelectorAll('br').forEach(n=>n.replaceWith('\n'));c.querySelectorAll('p,div,li,pre,h1,h2,h3,h4,blockquote').forEach(n=>n.append('\n'));return norm(c.textContent||'').replace(/\n{3,}/g,'\n\n');}).filter(Boolean);}return [];}
- function sendButton(){return first(selectors.send)||[...document.querySelectorAll('button')].find(el=>visible(el)&&/^(send|send message|send prompt|submit|보내기|전송|메시지 보내기|프롬프트 보내기|질문 보내기|전송하기|제출)(\s|$)/i.test(el.getAttribute('aria-label')||el.innerText||''));}
- function stopButton(){return first(['button[data-testid="stop-button"]','button.stop-button'])||[...document.querySelectorAll('button')].find(el=>visible(el)&&/^(stop|stop generating|stop response|중지|응답 중지|생성 중지|답변 중지|정지)(\s|$)/i.test(el.getAttribute('aria-label')||el.innerText||''));}
+ function responses(){for(const s of selectors.answer){const nodes=[...document.querySelectorAll(s)].filter(visible);if(nodes.length)return nodes.map(el=>{const c=el.cloneNode(true);c.querySelectorAll('button,svg,script,style,[aria-hidden="true"]').forEach(n=>n.remove());c.querySelectorAll('br').forEach(n=>n.replaceWith('\n'));c.querySelectorAll('p,div,li,pre,h1,h2,h3,h4,blockquote').forEach(n=>n.append('\n'));return norm(c.textContent||'').replace(/\n{3,}/g,'\n\n');}).filter(value=>value&&!/^(grok|claude|chatgpt|gemini)$/i.test(value));}return [];}
+ function sendButton(){return first(selectors.send)||[...document.querySelectorAll('button')].find(el=>visible(el)&&/^(send|send message|send prompt|submit|보내기|전송|메시지 보내기|프롬프트 보내기|질문 보내기|전송하기|제출)(\s|$)/i.test(el.getAttribute('aria-label')||el.getAttribute('data-state')||el.innerText||''));}
+ function stopButton(){return first(['button[data-testid="stop-button"]','button.stop-button'])||[...document.querySelectorAll('button')].find(el=>visible(el)&&/^(stop|stop generating|stop response|중지|응답 중지|생성 중지|답변 중지|정지)(\s|$)/i.test(el.getAttribute('aria-label')||el.getAttribute('data-state')||el.innerText||''));}
  let currentJob=null,cancelled=false,started=false;
  const send=async m=>{try{return await chrome.runtime.sendMessage(m);}catch{return {active:false};}};
  async function report(state,message,answer){const r=await send({type:'STATUS',runId:currentJob.runId,state,message,...(answer!==undefined?{text:answer}:{})});if(r?.active===false)cancelled=true;return r;}
@@ -34,13 +34,13 @@
   let previous='',changedAt=Date.now(),firstAt=0,lastSent='',lastReport=0;const until=Date.now()+5*60*1000;
   while(!cancelled&&Date.now()<until){
    const replies=responses(),latest=replies.at(-1)||'',base=job.baseline||{count:0,text:''};
-   const fresh=!!latest&&(replies.length>base.count||latest!==base.text);
+   const fresh=!!latest&&norm(latest)!==norm(job.prompt)&&(replies.length>base.count||latest!==base.text);
    if(fresh){
     if(latest!==previous){previous=latest;changedAt=Date.now();firstAt||=Date.now();}
     if(latest!==lastSent&&Date.now()-lastReport>1000){await report('streaming','답변 받는 중',latest);lastSent=latest;lastReport=Date.now();}
     const editor=first(selectors.edit),ready=sendButton();
     if(Date.now()-changedAt>15000&&Date.now()-firstAt>15000&&!stopButton()&&editor&&!editor.disabled&&!norm(text(editor))){await report('done','답변 수집 완료',latest);return;}
-   }else if(Date.now()-lastReport>10000){await report('submitted','응답 대기 중 · AI 탭에서 로그인·인증·사용량 제한을 확인할 수 있어요.');lastReport=Date.now();}
+   }else if(Date.now()-lastReport>10000){await report('submitted',job.awaitingManual?'질문을 입력했습니다. AI 확인을 눌러 전송 버튼을 직접 누르면 답변을 자동 수집합니다.':'응답 대기 중 · AI 탭에서 로그인·인증·사용량 제한을 확인할 수 있어요.');lastReport=Date.now();}
    await sleep(1200);
   }
   if(!cancelled)await report('error','응답 완료를 확인하지 못했습니다. AI 확인 버튼으로 확인해 주세요. 받은 내용은 보관했습니다.',previous||undefined);
@@ -56,11 +56,11 @@
   await sleep(1500);editor=first(selectors.edit);if(!editor)throw Error('입력창이 변경됐습니다. 새 비교로 다시 실행해 주세요.');
   const claim=await send({type:'CLAIM',runId:job.runId});if(!claim?.active)return;
   await fill(editor,job.prompt);if(cancelled)return;
-  let button=null;for(let i=0;i<20&&!cancelled;i++){button=sendButton();if(button&&!button.disabled)break;await sleep(300);}
-  if(cancelled)return;if(!button||button.disabled)throw Error('전송 버튼이 활성화되지 않았습니다. AI 탭에서 확인해 주세요.');
+  let button=null;for(let i=0;i<50&&!cancelled;i++){button=sendButton();if(button&&!button.disabled&&button.getAttribute('aria-disabled')!=='true')break;await sleep(300);}
+  if(cancelled)return;const canSend=button&&!button.disabled&&button.getAttribute('aria-disabled')!=='true';
   const before=responses(),baseline={count:before.length,text:before.at(-1)||''};
   const armed=await send({type:'ARM',runId:job.runId,baseline});if(!armed?.active||cancelled)return;
-  currentJob.state='submitted';button.click();await observe({...job,baseline});
+  currentJob.state='submitted';if(canSend){button.click();}else{await report('submitted','질문을 입력했습니다. AI 확인을 눌러 전송 버튼을 직접 누르면 답변을 자동 수집합니다.');}await observe({...job,baseline,awaitingManual:!canSend});
  }
  async function start(){if(started)return;const r=await send({type:'HELLO'});if(!r?.job)return;started=true;try{await run(r.job);}catch(e){if(!cancelled&&currentJob)await report('error',e.message||'AI 화면을 확인해 주세요.');}}
  // A new tab can finish loading before the service worker finishes assigning it.
