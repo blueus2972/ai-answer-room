@@ -17,6 +17,7 @@ async function handle(m,sender){
    await write(runs);await notify(run);return {run:publicRun(run)};
   }
   const run=runs[clientId];if(!run||run.id!==m.runId)return {error:'현재 비교를 다시 확인해 주세요.'};
+  if(m.type==='RECOVER'){const j=run.jobs.find(j=>j.provider===m.provider);if(!j||!terminal(j.state))return {error:'수집 중인 AI는 먼저 완료되거나 중지되어야 합니다.'};if(!j.tabId)return {error:'AI 탭이 없습니다. 새 비교로 실행해 주세요.'};try{await chrome.tabs.get(j.tabId);}catch{return {error:'AI 탭이 닫혔습니다. 새 비교로 실행해 주세요.'};}j.state='submitted';j.message='이 AI의 기존 답변을 다시 수집합니다. 질문이 입력창에 남아 있다면 직접 전송해 주세요.';j.baseline={count:0,text:''};run.started=Date.now();await write(runs);await chrome.tabs.reload(j.tabId);await notify(run);return {run:publicRun(run)};}
   if(m.type==='OPEN'){const j=run.jobs.find(j=>j.provider===m.provider);if(j?.tabId)try{await chrome.tabs.update(j.tabId,{active:true});}catch{return {error:'AI 탭이 닫혔습니다.'};}return {ok:true};}
   if(m.type==='CANCEL'){for(const j of run.jobs){if(!terminal(j.state)){j.state='cancelled';j.message='중지됨 · 이미 전송한 질문은 AI 사이트에 남습니다.';try{await chrome.tabs.sendMessage(j.tabId,{type:'STOP',runId:run.id});}catch{}}}await write(runs);await notify(run);return {run:publicRun(run)};}
   return {error:'지원하지 않는 요청입니다.'};

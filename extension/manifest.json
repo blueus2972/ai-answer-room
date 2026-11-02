@@ -1,5 +1,5 @@
 {
- "manifest_version":3,"name":"우리반 AI 비교 연결","version":"0.2.1","minimum_chrome_version":"114",
+ "manifest_version":3,"name":"우리반 AI 비교 연결","version":"0.2.2","minimum_chrome_version":"114",
  "description":"우리반 AI 답변 비교실에서 질문을 보내고 로그인된 Gemini, Claude, ChatGPT, Grok 답변을 가져옵니다.",
  "permissions":["storage","alarms"],
  "host_permissions":["https://uriban-ai-compare.vercel.app/*","https://gemini.google.com/*","https://claude.ai/*","https://chatgpt.com/*","https://grok.com/*"],

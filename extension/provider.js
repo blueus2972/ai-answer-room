@@ -20,6 +20,7 @@
  async function report(state,message,answer){const r=await send({type:'STATUS',runId:currentJob.runId,state,message,...(answer!==undefined?{text:answer}:{})});if(r?.active===false)cancelled=true;return r;}
  chrome.runtime.onMessage.addListener(m=>{if(m.type==='STOP'&&m.runId===currentJob?.runId){cancelled=true;if(['submitted','streaming'].includes(currentJob.state))stopButton()?.click();}});
  async function fill(editor,prompt){
+  if(norm(text(editor))===norm(prompt))return;
   if(norm(text(editor)))throw Error('AI 입력창에 다른 내용이 있어 멈췄습니다. 새 비교로 다시 실행해 주세요.');
   editor.focus();
   if(editor instanceof HTMLTextAreaElement){Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(editor,prompt);editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:prompt}));editor.dispatchEvent(new Event('change',{bubbles:true}));}
@@ -47,7 +48,7 @@
  }
  async function run(job){
   currentJob=job;
-  if(['submitted','streaming'].includes(job.state)){await observe(job);return;}
+  if(['submitted','streaming'].includes(job.state)){await observe({...job,awaitingManual:true});return;}
   if(job.state==='preparing'){await report('error','질문 입력 도중 화면이 다시 열렸습니다. 중복 전송을 막기 위해 멈췄어요. AI 탭을 확인해 주세요.');return;}
   let editor=null,lastReport=0;const until=Date.now()+120000;
   while(!cancelled&&Date.now()<until){editor=first(selectors.edit);if(editor&&!editor.disabled)break;if(Date.now()-lastReport>10000){await report('queued','입력창 대기 · AI 확인을 눌러 로그인·인증을 마쳐 주세요.');lastReport=Date.now();}await sleep(1000);}

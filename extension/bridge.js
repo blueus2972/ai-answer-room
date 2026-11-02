@@ -7,6 +7,7 @@
   if(!e.isTrusted||busy)return;
   if(e.target.closest('#sendAll')){const prompt=document.getElementById('prompt')?.value,recordId=document.documentElement.dataset.compareRecord;if(!prompt?.trim())return;busy=true;try{await send({type:'START',prompt,recordId});}finally{busy=false;}}
   if(e.target.closest('#stopAll'))await send({type:'CANCEL',runId:document.documentElement.dataset.compareRun});
+  const recover=e.target.closest('[data-recover-provider]');if(recover)await send({type:'RECOVER',runId:document.documentElement.dataset.compareRun,provider:recover.dataset.recoverProvider});
   const open=e.target.closest('[data-open-provider]');if(open)await send({type:'OPEN',runId:document.documentElement.dataset.compareRun,provider:open.dataset.openProvider});
  });
  window.addEventListener('message',e=>{if(e.source===window&&e.origin===location.origin&&e.data?.source==='uriban-ai-web'&&e.data.type==='SYNC')sync();});
